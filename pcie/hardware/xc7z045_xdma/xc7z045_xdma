@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#change the vivado_path to yours if required.
+vivado_path=/opt/tools/Xilinx/Vivado/2018.3/bin
+
+cd ../../software/linux_kernels/XDMA/xdma 
+sudo make install
+cd ../tools
+sudo make
+
+cd ../../../../hardware/xc7z045_xdma 
+$vivado_path/vivado -source ./xc7z045_xdma.tcl

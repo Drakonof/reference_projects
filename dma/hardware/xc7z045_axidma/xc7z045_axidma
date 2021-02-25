@@ -1,0 +1,6 @@
+#!/bin/bash
+
+#change the vivado_path to yours if required.
+vivado_path=/opt/tools/Xilinx/Vivado/2018.3/bin
+
+$vivado_path/vivado -source ./xc7z045_axidma.tcl

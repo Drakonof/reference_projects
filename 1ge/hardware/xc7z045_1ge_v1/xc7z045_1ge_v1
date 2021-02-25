@@ -1,0 +1,7 @@
+#!/bin/bash
+
+#change the vivado_path to yours if required.
+vivado_path=/opt/tools/Xilinx/Vivado/2018.3/bin
+
+cd ../../../../hardware/xc7z045_1ge_v1 
+$vivado_path/vivado -source ./xc7z045_1ge_v1.tcl
