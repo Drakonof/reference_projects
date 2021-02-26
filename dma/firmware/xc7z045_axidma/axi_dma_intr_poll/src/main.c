@@ -13,7 +13,7 @@
 volatile _Bool tx_done_flag, rx_done_flag, tx_error, rx_error;
 
 axi_dma_init_str init;
-axi_dma_poll_str poll;
+axi_dma_poll_str dma_to_dev_poll, dev_to_dma_poll;
 axi_dma_handler_str handler;
 
 static void tx_intr_handler(void *callback);
@@ -27,7 +27,7 @@ int main(void) {
 	const uint8_t c_ascii_num_offset = 0x30;
 	uint32_t i = 0;
 
-	memset((uint8_t *) XPAR_BRAM_0_BASEADDR,0,0x100);
+	memset((uint8_t *) RX_BUFFER,0,0x100);
 
 	init.dma_id = XPAR_AXIDMA_0_DEVICE_ID;
 	init.rx_intr_handler = rx_intr_handler;
@@ -35,9 +35,10 @@ int main(void) {
 	init.rx_intr_id = XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID;
 	init.tx_intr_id = XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID;
 
-	poll.p_tx_buf = TX_BUFFER;
-	poll.p_rx_buf = RX_BUFFER;
-	poll.size = PAYLOAD_SIZE;
+	dma_to_dev_poll.p_buf = TX_BUFFER;
+	dma_to_dev_poll.size = PAYLOAD_SIZE;
+	dev_to_dma_poll.p_buf = RX_BUFFER;
+	dev_to_dma_poll.size = PAYLOAD_SIZE;
 
 	axi_dma_init(&init, &handler);
 
@@ -56,13 +57,14 @@ int main(void) {
 
 
 	    for(i = 0; i < MAX_TX_VALUE; i++) {
-		    poll.p_tx_buf[i] = (i * mul_coefficient) % MAX_TX_VALUE;
+	    	dma_to_dev_poll.p_buf[i] = (i * mul_coefficient) % MAX_TX_VALUE;
 	    }
 
 	    tx_done_flag = FALSE;
 	    rx_done_flag = FALSE;
 
-	    axi_dma_poll(&poll, &handler.axi_dma, init.dma_id);
+	    axi_dma_dma_to_dev_poll(&dma_to_dev_poll, &handler.axi_dma, init.dma_id);
+	    axi_dma_dev_to_dma_poll(&dev_to_dma_poll, &handler.axi_dma, init.dma_id);
 
 	    xil_printf("AXI DMA %d: waiting completion of the poll...", init.dma_id);
 
@@ -76,6 +78,9 @@ int main(void) {
 		else {
 			xil_printf("\n\n\rAXI DMA %d: the tx buffer:\n\r", init.dma_id);
 			printf_array(TX_BUFFER ,PAYLOAD_SIZE);
+
+			Xil_DCacheFlushRange((UINTPTR) (dev_to_dma_poll.p_buf), dev_to_dma_poll.size);
+			Xil_DCacheInvalidateRange((UINTPTR) (dev_to_dma_poll.p_buf), dev_to_dma_poll.size);
 
 			xil_printf("\n\n\rAXI DMA %d: the rx buffer:\n\r", init.dma_id);
 			printf_array(RX_BUFFER, PAYLOAD_SIZE);

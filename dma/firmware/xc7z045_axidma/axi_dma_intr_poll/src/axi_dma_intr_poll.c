@@ -3,6 +3,7 @@
 #include "axi_dma_intr_poll.h"
 
 static int enable_intr_(axi_dma_handler_str *p_handler, axi_dma_init_str *p_init);
+static int set_intr_handler_(uint32_t intr_id, XScuGic *p_scu_gic, void(*intr_handler)(void *), XAxiDma *p_axi_dma);
 
 int axi_dma_init(axi_dma_init_str *p_init, axi_dma_handler_str *p_handler) {
 
@@ -37,24 +38,34 @@ int axi_dma_init(axi_dma_init_str *p_init, axi_dma_handler_str *p_handler) {
     return XST_SUCCESS;
 }
 
-int axi_dma_poll(axi_dma_poll_str *p_poll, XAxiDma *p_axi_dma, uint32_t dma_id) {
+int axi_dma_dev_to_dma_poll (axi_dma_poll_str *p_poll, XAxiDma *p_axi_dma, uint32_t dma_id) {
+
+	if ((NULL == p_poll) || (NULL == p_axi_dma)) {
+	    xil_printf("AXI DMA %d ERROR: the entire axi_dma_poll function ERROR\r\n", dma_id);
+	    return XST_FAILURE;
+	}
+
+	if (XST_SUCCESS != XAxiDma_SimpleTransfer(p_axi_dma,(UINTPTR) (p_poll->p_buf),
+	                                              p_poll->size, XAXIDMA_DEVICE_TO_DMA)) {
+	    xil_printf("AXI DMA %d ERROR: the rx buffer setting FAILED\r\n", dma_id);
+	    return XST_FAILURE;
+	}
+
+	return XST_SUCCESS;
+}
+
+int axi_dma_dma_to_dev_poll(axi_dma_poll_str *p_poll, XAxiDma *p_axi_dma, uint32_t dma_id) {
 
     if ((NULL == p_poll) || (NULL == p_axi_dma)) {
         xil_printf("AXI DMA %d ERROR: the entire axi_dma_poll function ERROR\r\n", dma_id);
         return XST_FAILURE;
     }
 
-    Xil_DCacheFlushRange((UINTPTR) (p_poll->p_tx_buf), p_poll->size);
+    Xil_DCacheFlushRange((UINTPTR) (p_poll->p_buf), p_poll->size);
 
-    if (XST_SUCCESS != XAxiDma_SimpleTransfer(p_axi_dma,(UINTPTR) (p_poll->p_tx_buf),
+    if (XST_SUCCESS != XAxiDma_SimpleTransfer(p_axi_dma,(UINTPTR) (p_poll->p_buf),
                                               p_poll->size, XAXIDMA_DMA_TO_DEVICE)) {
         xil_printf("AXI DMA %d ERROR: the tx buffer setting FAILED\r\n", dma_id);
-        return XST_FAILURE;
-    }
-
-    if (XST_SUCCESS != XAxiDma_SimpleTransfer(p_axi_dma,(UINTPTR) (p_poll->p_rx_buf),
-                                              p_poll->size, XAXIDMA_DEVICE_TO_DMA)) {
-    	xil_printf("AXI DMA %d ERROR: the rx buffer setting FAILED\r\n", dma_id);
         return XST_FAILURE;
     }
 
@@ -71,12 +82,39 @@ int axi_dma_release(XScuGic *p_scu_gic, uint32_t tx_intr_id, uint32_t rx_intr_id
     XScuGic_Disconnect(p_scu_gic, tx_intr_id);
     XScuGic_Disconnect(p_scu_gic, rx_intr_id);
 
+    //DisableIntrSystem(&Intc, TX_INTR_ID, RX_INTR_ID);
+
     return XST_SUCCESS;
+}
+
+static int set_intr_handler_(uint32_t intr_id, XScuGic *p_scu_gic,
+		                    void(*intr_handler)(void *), XAxiDma *p_axi_dma) {
+
+	const uint8_t c_priority = 0xA0, c_trigger_type = 0x3;
+
+	if (0 != intr_id) {
+
+		if (NULL == intr_handler) {
+			return XST_FAILURE;
+		}
+
+		XScuGic_SetPriorityTriggerType(p_scu_gic, intr_id, c_priority, c_trigger_type);
+		if (XST_SUCCESS != XScuGic_Connect(p_scu_gic, intr_id, (Xil_InterruptHandler) intr_handler,
+									  p_axi_dma)) {
+			 xil_printf("AXI DMA ERROR: the scu gic tx connection FAILED\r\n");
+			 return XST_FAILURE;
+		}
+	}
+	else {
+		//todo
+	}
+
+	return XST_SUCCESS;
 }
 
 static int enable_intr_(axi_dma_handler_str *p_handler, axi_dma_init_str *p_init) {
 
-    const uint8_t c_priority = 0xA0, c_trigger_type = 0x3;
+
 
     p_handler->p_intc_config = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID);
     if (NULL == p_handler->p_intc_config) {
@@ -90,21 +128,16 @@ static int enable_intr_(axi_dma_handler_str *p_handler, axi_dma_init_str *p_init
         return XST_FAILURE;
 	}
 
-    XScuGic_SetPriorityTriggerType(&(p_handler->scu_gic), p_init->tx_intr_id, c_priority, c_trigger_type);
-    XScuGic_SetPriorityTriggerType(&(p_handler->scu_gic), p_init->rx_intr_id, c_priority, c_trigger_type);
-
-    if (XST_SUCCESS != XScuGic_Connect(&(p_handler->scu_gic), p_init->tx_intr_id,
-                                      (Xil_InterruptHandler)p_init->tx_intr_handler,
-                                      &(p_handler->axi_dma))) {
-        xil_printf("AXI DMA %d ERROR: the scu gic tx connection FAILED\r\n", p_init->dma_id);
-        return XST_FAILURE;
+    if (XST_SUCCESS != set_intr_handler_(p_init->tx_intr_id, &(p_handler->scu_gic),
+    		                             p_init->tx_intr_handler, &(p_handler->axi_dma))) {
+    	xil_printf("AXI DMA %d ERROR: the tx intr_handler ERROR\r\n", p_init->dma_id);
+    	return XST_FAILURE;
     }
 
-    if (XST_SUCCESS != XScuGic_Connect(&(p_handler->scu_gic), p_init->rx_intr_id,
-                                      (Xil_InterruptHandler)p_init->rx_intr_handler,
-                                      &(p_handler->axi_dma))) {
-        xil_printf("AXI DMA %d ERROR: the scu gic rx connection FAILED\r\n", p_init->dma_id);
-        return XST_FAILURE;
+    if (XST_SUCCESS != set_intr_handler_(p_init->rx_intr_id, &(p_handler->scu_gic),
+        		      p_init->rx_intr_handler, &(p_handler->axi_dma))) {
+    	xil_printf("AXI DMA %d ERROR: the rx intr_handler ERROR\r\n", p_init->dma_id);
+    	return XST_FAILURE;
     }
 
     XScuGic_Enable(&(p_handler->scu_gic), p_init->tx_intr_id);
