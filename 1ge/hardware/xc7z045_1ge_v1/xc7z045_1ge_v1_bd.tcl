@@ -126,8 +126,8 @@ xilinx.com:ip:axi_dma:7.1\
 xilinx.com:ip:axis_data_fifo:2.0\
 xilinx.com:ip:axi_ethernet:7.1\
 xilinx.com:ip:clk_wiz:6.0\
-xilinx.com:ip:processing_system7:5.5\
 xilinx.com:ip:proc_sys_reset:5.0\
+xilinx.com:ip:processing_system7:5.5\
 xilinx.com:ip:xlconcat:2.1\
 "
 
@@ -351,6 +351,9 @@ proc create_root_design { parentCell } {
    CONFIG.USE_RESET {false} \
  ] $ethernet_clk_wiz
 
+  # Create instance: ethernet_proc_sys_reset1, and set properties
+  set ethernet_proc_sys_reset1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 ethernet_proc_sys_reset1 ]
+
   # Create instance: ps, and set properties
   set ps [ create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 ps ]
   set_property -dict [ list \
@@ -504,7 +507,9 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports fixed_io] [get_bd_intf_pins ps/FIXED_IO]
 
   # Create port connections
-  connect_bd_net -net S00_ARESETN_1 [get_bd_pins dma/axi_resetn] [get_bd_pins dma_axi_interconnect/M00_ARESETN] [get_bd_pins dma_axi_interconnect/S00_ARESETN] [get_bd_pins dma_axi_interconnect/S01_ARESETN] [get_bd_pins dma_axi_interconnect/S02_ARESETN] [get_bd_pins dma_axis_data_fifo_rx/s_axis_aresetn] [get_bd_pins dma_axis_data_fifo_tx/s_axis_aresetn] [get_bd_pins ethernet/s_axi_lite_resetn] [get_bd_pins ps_axi_interconnect/M00_ARESETN] [get_bd_pins ps_axi_interconnect/M01_ARESETN] [get_bd_pins ps_axi_interconnect/S00_ARESETN] [get_bd_pins ps_proc_sys_reset/peripheral_aresetn]
+  connect_bd_net -net ARESETN_1 [get_bd_pins dma_axi_interconnect/ARESETN] [get_bd_pins ethernet_proc_sys_reset1/interconnect_aresetn]
+  connect_bd_net -net S00_ARESETN_1 [get_bd_pins dma/axi_resetn] [get_bd_pins ethernet/s_axi_lite_resetn] [get_bd_pins ps_axi_interconnect/M00_ARESETN] [get_bd_pins ps_axi_interconnect/M01_ARESETN] [get_bd_pins ps_axi_interconnect/S00_ARESETN] [get_bd_pins ps_proc_sys_reset/peripheral_aresetn]
+  connect_bd_net -net S00_ARESETN_2 [get_bd_pins dma_axi_interconnect/M00_ARESETN] [get_bd_pins dma_axi_interconnect/S00_ARESETN] [get_bd_pins dma_axi_interconnect/S01_ARESETN] [get_bd_pins dma_axi_interconnect/S02_ARESETN] [get_bd_pins dma_axis_data_fifo_rx/s_axis_aresetn] [get_bd_pins dma_axis_data_fifo_tx/s_axis_aresetn] [get_bd_pins ethernet_proc_sys_reset1/peripheral_aresetn]
   connect_bd_net -net axi_dma_0_mm2s_cntrl_reset_out_n [get_bd_pins dma/mm2s_cntrl_reset_out_n] [get_bd_pins ethernet/axi_txc_arstn]
   connect_bd_net -net axi_dma_0_mm2s_introut [get_bd_pins dma/mm2s_introut] [get_bd_pins xlconcat/In0]
   connect_bd_net -net axi_dma_0_mm2s_prmry_reset_out_n [get_bd_pins dma/mm2s_prmry_reset_out_n] [get_bd_pins ethernet/axi_txd_arstn]
@@ -516,11 +521,12 @@ proc create_root_design { parentCell } {
   connect_bd_net -net clk_in1_p_1 [get_bd_ports ref_clk_200_p] [get_bd_pins ethernet_clk_wiz/clk_in1_p]
   connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_pins ethernet/ref_clk] [get_bd_pins ethernet_clk_wiz/clk_out1]
   connect_bd_net -net const_1h0_dout [get_bd_ports sft_tx_disable] [get_bd_pins const_1h0/dout]
+  connect_bd_net -net ethernet_userclk2_out [get_bd_pins dma/m_axi_mm2s_aclk] [get_bd_pins dma/m_axi_s2mm_aclk] [get_bd_pins dma/m_axi_sg_aclk] [get_bd_pins dma_axi_interconnect/ACLK] [get_bd_pins dma_axi_interconnect/M00_ACLK] [get_bd_pins dma_axi_interconnect/S00_ACLK] [get_bd_pins dma_axi_interconnect/S01_ACLK] [get_bd_pins dma_axi_interconnect/S02_ACLK] [get_bd_pins dma_axis_data_fifo_rx/s_axis_aclk] [get_bd_pins dma_axis_data_fifo_tx/s_axis_aclk] [get_bd_pins ethernet/axis_clk] [get_bd_pins ethernet/userclk2_out] [get_bd_pins ethernet_proc_sys_reset1/slowest_sync_clk] [get_bd_pins ps/S_AXI_HP0_ACLK]
   connect_bd_net -net mgt_clk_clk_n_1 [get_bd_ports mgt_clk_125_n] [get_bd_pins ethernet/mgt_clk_clk_n]
   connect_bd_net -net mgt_clk_clk_p_1 [get_bd_ports mgt_clk_125_p] [get_bd_pins ethernet/mgt_clk_clk_p]
-  connect_bd_net -net proc_sys_reset_0_interconnect_aresetn [get_bd_pins dma_axi_interconnect/ARESETN] [get_bd_pins ps_axi_interconnect/ARESETN] [get_bd_pins ps_proc_sys_reset/interconnect_aresetn]
-  connect_bd_net -net processing_system7_0_FCLK_CLK0 [get_bd_pins dma/m_axi_mm2s_aclk] [get_bd_pins dma/m_axi_s2mm_aclk] [get_bd_pins dma/m_axi_sg_aclk] [get_bd_pins dma/s_axi_lite_aclk] [get_bd_pins dma_axi_interconnect/ACLK] [get_bd_pins dma_axi_interconnect/M00_ACLK] [get_bd_pins dma_axi_interconnect/S00_ACLK] [get_bd_pins dma_axi_interconnect/S01_ACLK] [get_bd_pins dma_axi_interconnect/S02_ACLK] [get_bd_pins dma_axis_data_fifo_rx/s_axis_aclk] [get_bd_pins dma_axis_data_fifo_tx/s_axis_aclk] [get_bd_pins ethernet/axis_clk] [get_bd_pins ethernet/s_axi_lite_clk] [get_bd_pins ps/FCLK_CLK0] [get_bd_pins ps/M_AXI_GP0_ACLK] [get_bd_pins ps/S_AXI_HP0_ACLK] [get_bd_pins ps_axi_interconnect/ACLK] [get_bd_pins ps_axi_interconnect/M00_ACLK] [get_bd_pins ps_axi_interconnect/M01_ACLK] [get_bd_pins ps_axi_interconnect/S00_ACLK] [get_bd_pins ps_proc_sys_reset/slowest_sync_clk]
-  connect_bd_net -net processing_system7_0_FCLK_RESET0_N [get_bd_pins ps/FCLK_RESET0_N] [get_bd_pins ps_proc_sys_reset/ext_reset_in]
+  connect_bd_net -net proc_sys_reset_0_interconnect_aresetn [get_bd_pins ps_axi_interconnect/ARESETN] [get_bd_pins ps_proc_sys_reset/interconnect_aresetn]
+  connect_bd_net -net processing_system7_0_FCLK_CLK0 [get_bd_pins dma/s_axi_lite_aclk] [get_bd_pins ethernet/s_axi_lite_clk] [get_bd_pins ps/FCLK_CLK0] [get_bd_pins ps/M_AXI_GP0_ACLK] [get_bd_pins ps_axi_interconnect/ACLK] [get_bd_pins ps_axi_interconnect/M00_ACLK] [get_bd_pins ps_axi_interconnect/M01_ACLK] [get_bd_pins ps_axi_interconnect/S00_ACLK] [get_bd_pins ps_proc_sys_reset/slowest_sync_clk]
+  connect_bd_net -net processing_system7_0_FCLK_RESET0_N [get_bd_pins ethernet_proc_sys_reset1/ext_reset_in] [get_bd_pins ps/FCLK_RESET0_N] [get_bd_pins ps_proc_sys_reset/ext_reset_in]
   connect_bd_net -net xlconcat_0_dout [get_bd_pins ps/IRQ_F2P] [get_bd_pins xlconcat/dout]
   connect_bd_net -net xlconstant_0_dout [get_bd_pins const_1h1/dout] [get_bd_pins ethernet/signal_detect]
 
