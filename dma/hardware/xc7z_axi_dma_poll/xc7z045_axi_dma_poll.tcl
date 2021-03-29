@@ -1,7 +1,7 @@
 # The setups field. ########################################
 
 set vivado_vertion   "2018.3"          
-set project_name      xc7z045_axidma
+set project_name      xc7z045_axi_dma_poll
 set project_device    xc7z045ffg900-2
 set project_direction "."
 
